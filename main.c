@@ -3,41 +3,55 @@
 #include "GPIO.h"
 #include "Bits.h"
 #include <stdio.h>
+#include "generador.h"
 
+#define DEBUG_PRINT 0
 
 #define SYSTEM_CLOCK (21000000u)
 #define DELAY (0.01F)
-
 #define ARRAY_SIZE (16u)
 
 #define DMA_CH0 (0x01u)
 #define DMA_SOURCE_GPIO (51u)
 
+
 uint16_t g_data_source[ARRAY_SIZE] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};//defines source data space
 uint16_t g_data_desti[4*ARRAY_SIZE]; //defines destination data s
-
 uint16_t g_DAC_output = 0;
 
-void DMA0_IRQHandler(void)
+/** functions for DMA*/
+void DMA_clock_gating(void);
+void DMA_init(void);
+/** function for DAC*/
+void init_DAC();
+
+/** functions for ADC*/
+
+int main(void)
 {
+	gpio_pin_control_register_t sw2 = GPIO_MUX1 | GPIO_PE | GPIO_PS | DMA_FALLING_EDGE; /* GPIO configured to trigger the DMA*/
+	GPIO_clock_gating(GPIO_C);
+	GPIO_pin_control_register(GPIO_C, bit_6, &sw2);
 
+	DMA_clock_gating();
+	DMA_init(); /* Configure the DMA*/
+	NVIC_enable_interrupt_and_priotity(DMA_CH0_IRQ, PRIORITY_5);
+	NVIC_global_enable_interrupts;
+	init_DAC();
+	init_generador_seniales();
+    for (;;)
+    {
+    	generador_seniales();
 
-	DMA0->INT = DMA_CH0;
-	printf(" DAC vaalue %i\n",g_DAC_output);
-	if(ARRAY_SIZE  ==g_DAC_output )
-	{
-		DMA0->TCD[0].SADDR = (uint32_t)(&g_data_source[0]);/*defines source data address*/
-	}
+    }
+    /* Never leave main */
+    return 0;
 }
-
-
 void DMA_clock_gating(void)
 {
 	SIM->SCGC7 |= SIM_SCGC7_DMA_MASK;
 	SIM->SCGC6 |= SIM_SCGC6_DMAMUX_MASK;
 }
-
-
 void DMA_init(void)
 {
    /** PARAMETERS TO MODIFY*/
@@ -58,7 +72,7 @@ void DMA_init(void)
 	DMA0->TCD[0].SOFF =  source_offset *word_width_in_bytes;/*Source address signed offset;it is expressed in number of bytes*/
 
 
-	DMA0->TCD[0].DADDR = (uint32_t)(&g_DAC_output);/*defines destination data address*/
+	DMA0->TCD[0].DADDR = (uint32_t)(&DAC0->DAT[0].DATL);/*defines destination data address*/
 	DMA0->TCD[0].DOFF = destination_offset;/*destination address signed offset;it is expressed in number of bytes*/
 
 	DMA0->TCD[0].CITER_ELINKNO = DMA_CITER_ELINKNO_CITER(citer_steps);
@@ -73,25 +87,30 @@ void DMA_init(void)
 
 
 }
-
-int main(void)
+void DMA0_IRQHandler(void)
 {
-	gpio_pin_control_register_t sw2 = GPIO_MUX1 | GPIO_PE | GPIO_PS | DMA_FALLING_EDGE; /* GPIO configured to trigger the DMA*/
-
-	GPIO_clock_gating(GPIO_C);
-	GPIO_pin_control_register(GPIO_C, bit_6, &sw2);
-	DMA_clock_gating();
-	DMA_init(); /* Configure the T*/
-	NVIC_enable_interrupt_and_priotity(DMA_CH0_IRQ, PRIORITY_5);
-	NVIC_global_enable_interrupts;
-    for (;;)
-    {
 
 
-    }
-    /* Never leave main */
-    return 0;
+	DMA0->INT = DMA_CH0;
+	#ifdef DEBUG_PRINT
+		uint16_t DAC_output = 	(uint16_t)DAC0->DAT[0].DATH <<8  |	(uint16_t)DAC0->DAT[0].DATL  ;
+		printf(" DAC vaalue %i\n",DAC_output );
+	#endif
+	if(DMA0->TCD[0].SADDR == (uint32_t)(&g_data_source[ARRAY_SIZE]))
+	{
+		DMA0->TCD[0].SADDR = (uint32_t)(&g_data_source[0]);/*defines source data address*/
+	}
 }
+
+void init_DAC()
+{
+	SIM->SCGC2 = 0x1000;
+	DAC0->C0 = 0xC0;
+	DAC0->DAT[0].DATL = 0;
+	DAC0->DAT[0].DATH = 0;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // EOF
 ////////////////////////////////////////////////////////////////////////////////
