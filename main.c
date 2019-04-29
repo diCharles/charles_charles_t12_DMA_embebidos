@@ -9,12 +9,12 @@
 #define DEBUG_DMA_SOUCE_SW3 1u/** selects sw2 as source of DMA channel 0*/
 
 #define SYSTEM_CLOCK (21000000u)
-#define DELAY (0.01F)
+#define DELAY (0.001F)
 #define ARRAY_SIZE (16u)
 
 #define DMA_CH0 (0x01u)
-#define DMA_SOURCE_GPIO (51u)
-#define DMA_SOURCE_ALWAYS_ENABLED (63u)
+#define DMA_SOURCE_GPIO (51u)/** sw2 is the source for a new dma transfer*/
+#define DMA_SOURCE_ALWAYS_ENABLED (63u)/** if not commented the pit will trigger DMA*/
 
 
 uint16_t g_data_source[ARRAY_SIZE] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};//defines source data space
@@ -27,14 +27,15 @@ void DMA_init(void);
 /** function for DAC*/
 void init_DAC();
 
-/** functions for ADC*/
+
 
 int main(void)
 {
+	#ifndef DMA_SOURCE_ALWAYS_ENABLED
 	gpio_pin_control_register_t sw2 = GPIO_MUX1 | GPIO_PE | GPIO_PS | DMA_FALLING_EDGE; /* GPIO configured to trigger the DMA*/
 	GPIO_clock_gating(GPIO_C);
 	GPIO_pin_control_register(GPIO_C, bit_6, &sw2);
-
+	#endif
 	DMA_clock_gating();
 	DMA_init(); /* Configure the DMA*/
 	NVIC_enable_interrupt_and_priotity(DMA_CH0_IRQ, PRIORITY_5);
@@ -44,14 +45,14 @@ int main(void)
 	for (;;)
 	{
 		generador_seniales();
-	#ifdef DEBUG
-		if(PIT_get_interrupt_flag_status(PIT_0))
-		{
-			uint16_t DAC_output = 	(uint16_t)DAC0->DAT[0].DATH <<8  |	(uint16_t)DAC0->DAT[0].DATL  ;
-			printf("pit is here baby, the dac receives %i\n",DAC_output);
-			PIT_clear_interrupt_flag(PIT_0);
-		}
-	#endif
+		#ifdef DEBUG
+			if(PIT_get_interrupt_flag_status(PIT_0))
+			{
+				uint16_t DAC_output = 	(uint16_t)DAC0->DAT[0].DATH <<8  |	(uint16_t)DAC0->DAT[0].DATL  ;
+				printf("pit is here baby, the dac receives %i\n",DAC_output);
+				PIT_clear_interrupt_flag(PIT_0);
+			}
+		#endif
 
 	}
 	/* Never leave main */
@@ -72,14 +73,15 @@ void DMA_init(void)
 	uint32_t source_offset = 1; /** write this on words, a word not from k64 archq , a word from DMA transfer*/
 	uint32_t destination_offset = 1 /** write this on words, , a word not from k64 archq , a word from DMA transfer */;
 
-	DMAMUX->CHCFG[2] = 0;
-	DMAMUX->CHCFG[2] = DMAMUX_CHCFG_ENBL_MASK  /*enables DMA MUX channel*/
+	DMAMUX->CHCFG[0] = 0;
+	DMAMUX->CHCFG[0] = DMAMUX_CHCFG_ENBL_MASK ; /*enables DMA MUX channel*/
 #ifdef DMA_SOURCE_ALWAYS_ENABLED
-			|DMAMUX_CHCFG_TRIG_MASK |/** DMA trigger for channel 0 is PIT0, view pag  458*/
-			DMAMUX_CHCFG_SOURCE(DMA_SOURCE_ALWAYS_ENABLED);
+	DMAMUX->CHCFG[0] &= ~ (DMAMUX_CHCFG_TRIG_MASK);
+	DMAMUX->CHCFG[0]|= DMAMUX_CHCFG_TRIG_MASK |/** DMA trigger for channel 0 is PIT0, view pag  458*/
+	DMAMUX_CHCFG_SOURCE(DMA_SOURCE_ALWAYS_ENABLED);
 #endif
 #ifndef DMA_SOURCE_ALWAYS_ENABLED
-			|DMAMUX_CHCFG_SOURCE(DMA_SOURCE_GPIO);
+			DMAMUX->CHCFG[0] |= DMAMUX_CHCFG_SOURCE(DMA_SOURCE_GPIO);
 #endif
 
 	DMA0->ERQ = 0x01;//enables DMA0 request
@@ -108,14 +110,16 @@ void DMA0_IRQHandler(void)
 
 
 	DMA0->INT = DMA_CH0;
-#ifdef DEBUG_PRINT
-	uint16_t DAC_output = 	(uint16_t)DAC0->DAT[0].DATH <<8  |	(uint16_t)DAC0->DAT[0].DATL  ;
-	printf(" DAC vaalue %i\n",DAC_output );
-#endif
-	if(DMA0->TCD[0].SADDR == (uint32_t)(&g_data_source[ARRAY_SIZE]))
-	{
-		DMA0->TCD[0].SADDR = (uint32_t)(&g_data_source[0]);/*defines source data address*/
-	}
+	#ifdef DEBUG_PRINT
+		uint16_t DAC_output = 	(uint16_t)DAC0->DAT[0].DATH <<8  |	(uint16_t)DAC0->DAT[0].DATL  ;
+		printf(" DAC vaalue %i\n",DAC_output );
+		if(DMA0->TCD[0].SADDR == (uint32_t)(&g_data_source[ARRAY_SIZE]))
+		{
+				DMA0->TCD[0].SADDR = (uint32_t)(&g_data_source[0]);/*defines source data address*/
+		}
+	#endif
+
+
 }
 
 void init_DAC()
