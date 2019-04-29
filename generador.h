@@ -18,8 +18,9 @@
 #include "switches_k64.h"
 
 #define F_CPU     		(21000000U)
-#define PIT_DELAY 		(0.5F)
+#define PIT_DELAY 		(0.000006F)
 #define SELECTED_PIT 	PIT_0
+#define NUMBER_OF_STATES 			3u
 
 /*empty state, it does nothing*/
 void gen_idle();

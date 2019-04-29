@@ -70,8 +70,7 @@ void init_generador_seniales()
 	PIT_enable();
 	PIT_delay( SELECTED_PIT , F_CPU, PIT_DELAY);
 	//habilitando las interrupciones para el pit_0
-	//NVIC_enable_interrupt_and_priotity(PIT_CH0_IRQ, PRIORITY_5);
-	//NVIC_global_enable_interrupts;//equal to macro sei() in AVRS :)
+
 }
 void generador_seniales()
 {
