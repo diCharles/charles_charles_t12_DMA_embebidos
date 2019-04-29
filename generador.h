@@ -17,6 +17,10 @@
 #include "GPIO.h"
 #include "switches_k64.h"
 
+#define F_CPU     		(21000000U)
+#define PIT_DELAY 		(0.5F)
+#define SELECTED_PIT 	PIT_0
+
 /*empty state, it does nothing*/
 void gen_idle();
 /*generates with the DAC a 5 5kHz square signal*/

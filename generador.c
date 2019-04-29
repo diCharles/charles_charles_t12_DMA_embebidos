@@ -66,8 +66,12 @@ void init_generador_seniales()
 	//first initializing  the sw3 with her IRQ
 	init_sw3(PRIORITY_10,PRIORITY_4,INTR_FALLING_EDGE);
 	/** initialize pit0*/
-	//PIT_clock_gating();
-	//PIT_enable();
+	PIT_clock_gating();
+	PIT_enable();
+	PIT_delay( SELECTED_PIT , F_CPU, PIT_DELAY);
+	//habilitando las interrupciones para el pit_0
+	NVIC_enable_interrupt_and_priotity(PIT_CH0_IRQ, PRIORITY_5);
+	NVIC_global_enable_interrupts;//equal to macro sei() in AVRS :)
 }
 void generador_seniales()
 {
