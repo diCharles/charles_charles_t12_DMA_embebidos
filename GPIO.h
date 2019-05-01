@@ -5,7 +5,7 @@
 		It contains all the implementation for configuration functions and runtime functions.
 		i.e., this is the application programming interface (API) for the GPIO peripheral.
 	\author J. Luis Pizano Escalante, luispizano@iteso.mx
-	\date	5/09/2018
+	\date	18/02/2019
 	\todo
 	    Interrupts are not implemented in this API implementation.
  */
@@ -14,6 +14,7 @@
 
 
 #include "stdint.h"
+#include "Bits.h"
 
 
 /** Constant that represent the clock enable for GPIO A */
@@ -73,29 +74,14 @@
 
 
 
-#define SW3_INT PORTA_IRQHandler
-
-#define SW2_INT PORTC_IRQHandler
-
-
-typedef struct
-{
-	uint8_t flag_port_a : 1;
-	uint8_t flag_port_b : 1;
-	uint8_t flag_port_c : 1;
-	uint8_t flag_port_d : 1;
-	uint8_t flag_port_e : 1;
-} gpio_interrupt_flags_t;
-
-
-
-
 /*! This definition is used to configure whether a pin is an input or an output*/
 typedef enum {GPIO_INPUT,/*!< Definition to configure a pin as input */
 			  GPIO_OUTPUT /*!< Definition to configure a pin as output */
-			 }GPIO_PIN_CONFIG;
+			 }gpio_port_direction_t;
 
-
+typedef enum{GPIO_PIN_INPUT,
+			 GPIO_PIN_OUTPUT
+			}gpio_pin_direction_t;
 /*! These constants are used to select an specific port in the different API functions*/
 typedef enum{GPIO_A, /*!< Definition to select GPIO A */
 			 GPIO_B, /*!< Definition to select GPIO B */
@@ -106,138 +92,116 @@ typedef enum{GPIO_A, /*!< Definition to select GPIO A */
 			} gpio_port_name_t;
 
 /*! This data type is used to configure the pin control register*/
+			typedef struct
+			{
+				uint8_t flag_port_a : 1;
+				uint8_t flag_port_b : 1;
+				uint8_t flag_port_c : 1;
+				uint8_t flag_port_d : 1;
+				uint8_t flag_port_e : 1;
+			} gpio_interrupt_flags_t;
+
+
 typedef const uint32_t gpio_pin_control_register_t;
 
 
 
-uint8_t GPIO_clear_irq_status(gpio_port_name_t gpio);
+void GPIO_clear_irq_status(gpio_port_name_t gpio);
 
 uint8_t GPIO_get_irq_status(gpio_port_name_t gpio);
 
 
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
-/*!
- 	 \brief	 This function clears all interrupts that were sensed by the GPIO.
-
- 	 \param[in]  portName Port to clear interrupts.
- 	 \return void
- 	 \todo Implement a mechanism to clear interrupts by a specific pin.
- */
-void GPIO_clear_interrupt(gpio_port_name_t portName);
+void GPIO_clear_interrupt(gpio_port_name_t port_name);
 
 
 
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+bool_t GPIO_clock_gating(gpio_port_name_t port_name);
 /*!
  	 \brief	 This function enables the GPIO clock by configuring the corresponding bit
  	 	 and register in the System Clock Gating Control Register.
 
- 	 \param[in]  portName Port to be configured.
- 	 \return 1 if the portName is valid else return 0
+ 	 \param[in]  port_name Port to be configured.
+ 	 \return 1 if the port_name is valid else return 0
  */
-uint8_t GPIO_clock_gating(gpio_port_name_t portName);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+
+bool_t GPIO_pin_control_register(gpio_port_name_t port_name, uint8_t pin, gpio_pin_control_register_t* pinControlRegister);
 /*!
  	 \brief
  	 	 This function configure different characteristics in an specific GPIO:
  	 	 pullup or pulldown resistor,slew rate, drive strength, passive filter,open drain pin,alternative functions in the GPIO
- 	 \param[in] portName Port to be configured.
+ 	 \param[in] port_name Port to be configured.
  	 \param[in]  pin Specific pin to be configured.
  	 \param[in]  pinControlRegister Pointer to a constant configuration value that configures the pin characteristics. In particular this function
  	 uses the definitions GPIO_PS, GPIO_PE, GPIO_MUX1 etc. For example, in order to configure the pullup resistor ans the pin as GPIO it is need to
  	 declare the type in following way:
  	 gpio_pin_control_register_t PinControlRegister = GPIO_MUX1|GPIO_PS|GPIO_PE;
- 	 \return 1 if the portName is valid else return 0
+ 	 \return 1 if the port_name is valid, else return 0
  */
-uint8_t GPIO_pin_control_register(gpio_port_name_t portName, uint8_t pin, gpio_pin_control_register_t* pinControlRegister);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+void GPIO_data_direction_port(gpio_port_name_t port_name, gpio_port_direction_t direction);
 /*!
  	 \brief
  	 	 This function configure all the GPIO port as input when 1 logic is written or output when 0 logic is written.
- 	 \param[in] portName Port to configure
+ 	 \param[in] port_name Port to configure
  	 \param[in] direction Input value to specify the port as input or output.
  	 \return void
 
  */
-void GPIO_data_directionPORT(gpio_port_name_t portName, uint32_t direction);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+
+void GPIO_data_direction_pin(gpio_port_name_t port_name, uint8_t state, uint8_t pin);
 /*!
  	 \brief  This function configure specific pins of a GPIO port as input when 1 logic is written or output when 0 logic is written.
- 	 \param[in] portName Port to configure.
+ 	 \param[in] port_name Port to configure.
  	 \param[in] state Value to specify if the pin behaves as input or output.
  	 \param[in] pin Input value to specify the pin number.
  	 \return void
  */
-void GPIO_data_direction_pin(gpio_port_name_t portName, uint8_t state, uint8_t pin);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+
+uint32_t GPIO_read_port(gpio_port_name_t port_name);
 /*!
  	 \brief	 This function reads all the GPIO port.
- 	 \param[in] portName Port to be read.
+ 	 \param[in] port_name Port to be read.
  	 \return  It is the value read from a GPIO. It is a 32-bit value.
 
  */
-uint32_t GPIO_read_port(gpio_port_name_t portName);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+bool_t GPIO_read_pin(gpio_port_name_t port_name, uint8_t pin);
+
 /*!
  	 \brief	 This function reads a specific GPIO pin.
-	 \param[in] portName Port to be read.
+	 \param[in] port_name Port to be read.
  	 \param[in] pin Pin to be read.
  	 \return This function return 0 if the value of the pin is 0 logic or 1 is the value the pin is 1 logic.
  */
-uint8_t GPIO_read_pin(gpio_port_name_t portName, uint8_t pin);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+
+
+void GPIO_write_port(gpio_port_name_t port_name, uint32_t data);
 /*!
  	 \brief This function writes all the GPIO port.
- 	 \param[in] portName Port to be written.
+ 	 \param[in] port_name Port to be written.
  	 \param[in] data Value to be written.
  	 \return void
  */
-void GPIO_write_port(gpio_port_name_t portName, uint32_t data);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+void GPIO_set_pin(gpio_port_name_t port_name, uint8_t pin);
 /*!
  	\brief This set an specific pin in a GPIO port, it uses GPIO_PSOR register.
- 	\param[in] portName Port to be selected.
+ 	\param[in] port_name Port to be selected.
  	\param[in] pin Pin to be set.
  	\return void
  */
-void GPIO_set_pin(gpio_port_name_t portName, uint8_t pin);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+
+void GPIO_clear_pin(gpio_port_name_t port_name, uint8_t pin);
 /*!
  	 \brief This clear an specific pin in a GPIO port, it uses GPIO_PCOR register.
- 	 \param[in] portName Selected Port.
+ 	 \param[in] port_name Selected Port.
  	 \param[in] pin Pin to be clear.
  	 \return void
  */
-void GPIO_clear_pin(gpio_port_name_t portName, uint8_t pin);
-/********************************************************************************************/
-/********************************************************************************************/
-/********************************************************************************************/
+void GPIO_toogle_pin(gpio_port_name_t port_name, uint8_t pin);
+
 /*!
  	 \brief This toggle the value of a specific pin in a GPIO port, it uses GPIO_PTOR register.
- 	 \param[in] portName Selected Port.
+ 	 \param[in] port_name Selected Port.
  	 \param[in] pin Pin to be toggled.
  	 \return void
  */
-void GPIO_tooglePIN(gpio_port_name_t portName, uint8_t pin);
 
 #endif /* GPIO_H_ */
